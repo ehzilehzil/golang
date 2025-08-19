@@ -1,18 +1,89 @@
 package main
 
 import (
+	"log"
 	"os"
 
 	"github.com/jchv/go-webview2/pkg/edge"
 	"github.com/lxn/walk"
+	. "github.com/lxn/walk/declarative"
 	"github.com/lxn/win"
 )
 
 // copilot.microsoft.com 에 질문한 내용과 github.com/pirogom/walkmgr 코드를 참고함
 func main() {
-	_main()
+	declarative()
 }
-func _main() {
+
+// declarative 방식으로 구현
+func declarative() {
+	var main_w *walk.MainWindow
+	var top_iv *walk.ImageView
+	var bottom_iv *walk.ImageView
+
+	top_wv := edge.NewChromium()
+	top_wv.SetPermission(edge.CoreWebView2PermissionKindClipboardRead, edge.CoreWebView2PermissionStateAllow)
+	top_wv.DataPath = os.TempDir()
+	bottom_wv := edge.NewChromium()
+	bottom_wv.SetPermission(edge.CoreWebView2PermissionKindClipboardRead, edge.CoreWebView2PermissionStateAllow)
+	bottom_wv.DataPath = os.TempDir()
+
+	err := MainWindow{
+		AssignTo: &main_w,
+		Title:    "심플 브라우저",
+		Size:     Size{Width: 800, Height: 600},
+		Layout:   VBox{},
+		Children: []Widget{
+			Composite{
+				MinSize: Size{Width: 800, Height: 100},
+				MaxSize: Size{Width: 800, Height: 100},
+				Layout:  VBox{},
+				Children: []Widget{
+					ImageView{
+						AssignTo: &top_iv,
+						Mode:     ImageViewModeStretch,
+						OnSizeChanged: func() {
+							top_wv.NotifyParentWindowPositionChanged()
+							top_wv.Resize()
+						},
+					},
+				},
+			},
+			Composite{
+				Layout: VBox{},
+				Children: []Widget{
+					ImageView{
+						AssignTo: &bottom_iv,
+						Mode:     ImageViewModeStretch,
+						OnSizeChanged: func() {
+							bottom_wv.NotifyParentWindowPositionChanged()
+							bottom_wv.Resize()
+						},
+					},
+				},
+			},
+		},
+	}.Create()
+	if err != nil {
+		log.Fatal("윈도우 생성 에러")
+	}
+
+	main_w.Synchronize(func() {
+		top_wv.Embed(uintptr(top_iv.Handle()))
+		top_wv.Navigate("https://google.com")
+		top_wv.Resize()
+
+		bottom_wv.Embed(uintptr(bottom_iv.Handle()))
+		bottom_wv.Navigate("https://bing.com")
+		bottom_wv.Resize()
+	})
+
+	win.ShowWindow(main_w.Handle(), win.SW_MAXIMIZE)
+	main_w.Run()
+}
+
+// Imperative 방식으로 구현
+func imperative() {
 	mw, _ := walk.NewMainWindow()
 
 	mw.SetTitle("심플 브라우저")
@@ -30,7 +101,7 @@ func _main() {
 	ivTop.SetMode(walk.ImageViewModeStretch)
 
 	ivBottom, _ := walk.NewImageView(bottom)
-	ivBottom.SetMode(walk.ImageViewModeCenter)
+	ivBottom.SetMode(walk.ImageViewModeStretch)
 
 	wvTop := edge.NewChromium()
 	wvTop.SetPermission(edge.CoreWebView2PermissionKindClipboardRead, edge.CoreWebView2PermissionStateAllow)
